@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Weather of Today</title>
+    <style>
+        /* Existing CSS styles remain unchanged */
+        /* Reset default margins and paddings */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(to bottom, #6dd5ed, #2193b0);
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .form-group label {
+            flex: 1 1 100%;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            color: #fff;
+            text-align: center;
+        }
+
+        .form-group input {
+            flex: 1 1 70%;
+            padding: 10px;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .form-group button {
+            flex: 1 1 25%;
+            padding: 10px;
+            font-size: 1em;
+            background-color: #fff;
+            color: #2193b0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .form-group button:hover {
+            background-color: #f0f0f0;
+        }
+
+        #weatherResult, #activityRecommendation {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            text-align: center;
+            color: #333;
+            min-height: 50px;
+            margin-top: 20px;
+        }
+
+        #activityRecommendation ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        #activityRecommendation li {
+            margin: 5px 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .form-group {
+                flex-direction: column;
+            }
+
+            .form-group input,
+            .form-group button {
+                flex: 1 1 100%;
+                margin: 5px 0;
+            }
+
+            .form-group input {
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Get Today's Weather</h1>
+
+    <div class="container">
+        <!-- Form group for input and button -->
+        <div class="form-group">
+            <label for="cityName">Enter City Name:</label>
+            <input type="text" id="cityName" name="cityName" placeholder="e.g., New York">
+            <button id="getWeatherButton" type="button">Get Weather</button>
+        </div>
+
+        <!-- Div to display the weather result -->
+        <div id="weatherResult"></div>
+
+        <!-- Div to display activity recommendations -->
+        <div id="activityRecommendation"></div>
+    </div>
+
+    <!-- JavaScript code -->
+    <script>
+        // Get references to HTML elements
+        const getWeatherButton = document.getElementById('getWeatherButton');
+        const weatherResult = document.getElementById('weatherResult');
+        const activityRecommendation = document.getElementById('activityRecommendation');
+        const cityNameInput = document.getElementById('cityName');
+
+        // Function to fetch and display weather data
+        function fetchWeather() {
+            // Get the value from the city name input field
+            const cityName = cityNameInput.value.trim();
+
+            // Define your OpenWeatherMap API key
+            const apiKey = 'ea11511b6ba8472db86893a48fdd0ede'; // Replace with your actual API key
+
+            // Check if API key is provided
+            if (!apiKey) {
+                alert('API key is missing. Please add your API key to the code.');
+                return;
+            }
+
+            // Check if cityName is not empty
+            if (!cityName) {
+                weatherResult.innerHTML = 'Please enter a city name.';
+                activityRecommendation.innerHTML = '';
+                return;
+            }
+
+            // Construct the API URL with the city name and API key, using units=imperial for Fahrenheit
+            const apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(cityName)}&appid=${apiKey}&units=imperial`;
+
+            // Fetch the weather data from the API
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        // If HTTP response is not OK, throw an error
+                        return response.json().then(errData => {
+                            throw new Error(errData.message || 'Error fetching weather data');
+                        });
+                    }
+                    return response.json(); // Convert the response to JSON
+                })
+                .then(data => {
+                    console.log('API Response:', data); // Log the data for debugging
+                    // Extract temperature, weather description, and other relevant data
+                    const temperature = data.main.temp;
+                    const description = data.weather[0].description;
+                    const weatherId = data.weather[0].id; // Weather condition code
+                    const cityName = data.name;
+                    const timezoneOffset = data.timezone; // In seconds
+
+                    // Get the local time at the location
+                    const timestamp = Date.now() + (timezoneOffset * 1000) - (new Date().getTimezoneOffset() * 60000);
+                    const localDate = new Date(timestamp);
+                    const hour = localDate.getHours();
+
+                    // Display the weather information in the 'weatherResult' div
+                    weatherResult.innerHTML = `The weather in <strong>${cityName}</strong> is <strong>${description}</strong> with a temperature of <strong>${temperature}&deg;F</strong>.`;
+
+                    // Determine and display activity recommendations
+                    const activities = getActivityRecommendations(temperature, weatherId, hour);
+                    if (activities.length > 0) {
+                        activityRecommendation.innerHTML = `Recommended activities:<br><ul>${activities.map(activity => `<li>${activity}</li>`).join('')}</ul>`;
+                    } else {
+                        activityRecommendation.innerHTML = `No outdoor activities are recommended at this time due to the current weather conditions.`;
+                    }
+
+                    // **Clear the input field**
+                    cityNameInput.value = '';
+                })
+                .catch(error => {
+                    // If there's a network error or other issue, log it and display a message
+                    console.error('Error fetching the weather data:', error);
+                    weatherResult.innerHTML = `Error: ${error.message}`;
+                    activityRecommendation.innerHTML = '';
+                });
+        }
+
+        // Function to determine activity recommendations based on weather conditions and time
+        function getActivityRecommendations(temperature, weatherId, hour) {
+            const activities = [];
+
+            // Weather condition codes: https://openweathermap.org/weather-conditions
+            const isClear = weatherId === 800;
+            const isPartlyCloudy = weatherId === 801;
+            const isCloudy = weatherId >= 802 && weatherId <= 804;
+            const isRain = weatherId >= 500 && weatherId <= 531;
+            const isSnow = weatherId >= 600 && weatherId <= 622;
+            const isStorm = weatherId >= 200 && weatherId <= 232;
+            const isFog = weatherId >= 701 && weatherId <= 781;
+
+            // Determine time of day
+            const isDaytime = hour >= 6 && hour < 18;
+
+            if (isClear || isPartlyCloudy) {
+                if (temperature >= 60 && temperature <= 85) {
+                    activities.push('Go for a hike');
+                    activities.push('Have a picnic in the park');
+                    activities.push('Play outdoor sports');
+                } else if (temperature > 85) {
+                    activities.push('Go swimming');
+                    activities.push('Visit a water park');
+                    activities.push('Enjoy indoor activities with air conditioning');
+                } else if (temperature < 60 && temperature >= 32) {
+                    activities.push('Take a brisk walk');
+                    activities.push('Go cycling');
+                } else if (temperature < 32) {
+                    activities.push('Dress warmly and enjoy a winter walk');
+                }
+            }
+
+            if (isRain || isStorm || isFog) {
+                activities.push('Visit a museum');
+                activities.push('Go to a movie theater');
+                activities.push('Enjoy indoor activities');
+            }
+
+            if (isSnow) {
+                activities.push('Go skiing or snowboarding');
+                activities.push('Build a snowman');
+                activities.push('Have a snowball fight');
+            }
+
+            if (isCloudy && isDaytime && temperature >= 50 && temperature <= 75) {
+                activities.push('Go for a bike ride');
+                activities.push('Take a walk');
+            }
+
+            // Adjust activities based on time
+            if (!isDaytime) {
+                // Evening activities
+                activities.push('Stargazing');
+                activities.push('Attend a local event');
+            }
+
+            // Filter duplicate activities
+            const uniqueActivities = [...new Set(activities)];
+
+            return uniqueActivities;
+        }
+
+        // Add event listener to the button
+        getWeatherButton.addEventListener('click', fetchWeather);
+
+        // Add event listener to the input field for the 'Enter' key
+        cityNameInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                fetchWeather();
+            }
+        });
+    </script>
+
+</body>
+</html>
